@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>Document Generator - MERGEE</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&display=swap');
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Sarabun',sans-serif;background:#f5f5f0;color:#1a1a2e;font-size:15px;min-height:100vh}
+.page-header{padding:20px 24px 16px;background:#1a1a2e;color:#fff}
+.eyebrow{font-size:10px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:rgba(255,255,255,.45);margin-bottom:3px}
+.page-header h1{font-size:20px;font-weight:700}
+.pid-badge{display:inline-block;background:rgba(181,134,42,.22);border:1px solid rgba(181,134,42,.45);color:#f0d080;font-size:12px;font-weight:700;padding:3px 12px;border-radius:20px;margin-top:8px;letter-spacing:.06em}
+.body{padding:20px 24px;max-width:640px;margin:0 auto}
+.card{background:#fff;border:1px solid #e8e8e8;border-radius:12px;margin-bottom:16px}
+.card-head{padding:10px 16px;background:#1a1a2e;color:#fff;border-radius:11px 11px 0 0}
+.card-head h2{font-size:12px;font-weight:700;letter-spacing:.06em;text-transform:uppercase}
+.card-body{padding:16px}
+.field{display:flex;flex-direction:column;gap:5px;margin-bottom:14px}
+.field:last-child{margin-bottom:0}
+.field label{font-size:11px;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:.04em}
+.field input{width:100%;border:1px solid #ddd;border-radius:8px;padding:10px 12px;font-family:inherit;font-size:14px;color:#1a1a2e;background:#fafafa}
+.field input:focus{outline:none;border-color:#3d5af1;background:#fff}
+.field input.missing{border-color:#e0a030;background:#fffaf0}
+
+.combo-wrap{position:relative}
+.combo-dropdown{display:none;position:absolute;top:calc(100% + 4px);left:0;right:0;z-index:30;background:#fff;border:1.5px solid #e0e0e0;border-radius:8px;max-height:240px;overflow-y:auto;box-shadow:0 8px 20px rgba(0,0,0,.10)}
+.combo-dropdown.show{display:block}
+.combo-item{padding:9px 12px;cursor:pointer;font-size:13px;border-bottom:1px solid #f2f2f2}
+.combo-item:last-child{border-bottom:none}
+.combo-item:hover{background:#fdf8ee}
+.combo-empty{padding:10px 12px;font-size:12px;color:#aaa;text-align:center}
+.combo-item .badge-complete{display:inline-block;font-size:10px;font-weight:700;color:#1a7f5a;background:#e8f5e9;padding:1px 6px;border-radius:8px;margin-left:6px}
+.combo-item .badge-incomplete{display:inline-block;font-size:10px;font-weight:700;color:#b5862a;background:#fdf4e8;padding:1px 6px;border-radius:8px;margin-left:6px}
+
+.hint{font-size:12px;color:#888;margin-top:4px}
+.hint.missing-note{color:#b5862a}
+
+.btn{border:none;border-radius:10px;padding:13px;font-family:inherit;font-size:15px;font-weight:600;cursor:pointer;color:#fff;width:100%}
+.btn.primary{background:#1a1a2e}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+
+.status-msg{font-size:13px;margin-top:10px;text-align:center;display:none}
+.status-msg.ok{color:#1a7f5a}
+.status-msg.error{color:#c62828}
+.result-link{display:block;text-align:center;margin-top:10px;font-size:13px;font-weight:700;color:#1a1a2e;word-break:break-all;display:none}
+.saving-msg{display:none;text-align:center;font-size:13px;font-weight:700;color:#3d5af1;margin-top:8px;animation:blink 1s ease-in-out infinite}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.25}}
+
+.doctype-row{display:flex;gap:8px;margin-top:12px}
+.doctype-btn{flex:1;background:rgba(255,255,255,.08);border:1.5px solid rgba(255,255,255,.28);color:#fff;font-size:13px;font-weight:700;padding:9px;border-radius:8px;cursor:pointer;text-align:center}
+.doctype-btn.active{background:#b5862a;border-color:#b5862a;color:#fff}
+</style>
+</head>
+<body>
+
+<div class="page-header">
+  <div class="eyebrow">MERGEE</div>
+  <h1>Document Generator</h1>
+  <div class="doctype-row">
+    <button class="doctype-btn active" id="btn-doctype-PIPA" onclick="selectDocType('PIPA')">PIPA</button>
+    <button class="doctype-btn" id="btn-doctype-PDOBA" onclick="selectDocType('PDOBA')">PDOBA</button>
+    <button class="doctype-btn" id="btn-doctype-NDA" onclick="selectDocType('NDA')">NDA</button>
+  </div>
+  <div class="pid-badge" id="pipano-badge">กำลังโหลด…</div>
+</div>
+
+<div class="body">
+
+  <div class="card">
+    <div class="card-head"><h2>Reference</h2></div>
+    <div class="card-body">
+      <div class="field">
+        <label>Quotation No.</label>
+        <input id="qt_no">
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-head"><h2>Customer</h2></div>
+    <div class="card-body">
+      <div class="field combo-wrap">
+        <label>Client / Customer Name</label>
+        <input id="cust_name" autocomplete="off" placeholder="ค้นหาชื่อลูกค้าเดิม หรือพิมพ์ชื่อใหม่" oninput="onNameInput()" onfocus="onNameInput()" onblur="onNameBlur()">
+        <div class="combo-dropdown" id="name-dropdown"></div>
+      </div>
+      <div class="field">
+        <label>ID Card No. / Passport</label>
+        <input id="cust_id" placeholder="เลขบัตรประชาชน / พาสปอร์ต — จำเป็นสำหรับเอกสารนี้">
+        <div class="hint missing-note" id="id-missing-note" style="display:none">ลูกค้ารายนี้ยังไม่มีเลขบัตรในระบบ — กรุณากรอกเพิ่ม</div>
+      </div>
+      <div class="field">
+        <label>Address</label>
+        <input id="cust_address">
+      </div>
+      <div class="field">
+        <label>Phone</label>
+        <input id="cust_phone">
+      </div>
+      <div class="field">
+        <label>Email</label>
+        <input id="cust_email">
+      </div>
+    </div>
+  </div>
+
+  <button class="btn primary" id="btn-generate" onclick="generateDocument()">สร้างเอกสาร</button>
+  <div class="saving-msg" id="saving-msg">กำลังสร้างเอกสาร…</div>
+  <div class="status-msg" id="status-msg"></div>
+  <a class="result-link" id="pdf-link" href="#" target="_blank">📄 เปิดเอกสาร PIPA</a>
+
+</div>
+
+<script>
+const APPS_URL = 'https://script.google.com/macros/s/AKfycbyGqjoxNV-sMq9_78Bbgpy5oM973WzmVK4yCOLBEiABBqBBDjehKnpE3JwtpmjVFTCi/exec';
+
+let customerList = [];
+let currentDocType = 'PIPA';
+
+function escAttr(s) { return String(s || '').replace(/\\/g,'\\\\').replace(/'/g,"\\'"); }
+function escHtml(s) { return String(s || '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+
+function selectDocType(type) {
+  currentDocType = type;
+  ['PIPA','PDOBA','NDA'].forEach(t => {
+    document.getElementById('btn-doctype-' + t).classList.toggle('active', t === type);
+  });
+  loadNextDocNo();
+}
+
+async function loadCustomerList() {
+  try {
+    const res = await fetch(APPS_URL + '?action=customerlist');
+    const json = await res.json();
+    customerList = json.items || [];
+  } catch(e) { console.error('loadCustomerList failed:', e); }
+}
+
+async function loadNextDocNo() {
+  const badge = document.getElementById('pipano-badge');
+  badge.textContent = 'กำลังโหลด…';
+  try {
+    const res = await fetch(APPS_URL + '?action=nextdocno&doc_type=' + currentDocType);
+    const json = await res.json();
+    badge.textContent = json.doc_no || (currentDocType + ' No.');
+  } catch(e) {
+    badge.textContent = 'โหลดไม่ได้';
+  }
+}
+
+function onNameInput() {
+  const q = document.getElementById('cust_name').value.trim().toLowerCase();
+  const dd = document.getElementById('name-dropdown');
+  if (!q) { dd.classList.remove('show'); dd.innerHTML = ''; return; }
+  const matches = customerList.filter(c => c.name.toLowerCase().includes(q)).slice(0, 8);
+  if (matches.length === 0) {
+    dd.innerHTML = '<div class="combo-empty">ไม่พบ — พิมพ์ต่อเพื่อเพิ่มลูกค้าใหม่</div>';
+  } else {
+    dd.innerHTML = matches.map(c => {
+      const badge = c.id
+        ? '<span class="badge-complete">มี ID แล้ว</span>'
+        : '<span class="badge-incomplete">ไม่มี ID</span>';
+      return '<div class="combo-item" onmousedown="selectCustomer(' + "'" + escAttr(c.name) + "'" + ')"><b>' + escHtml(c.name) + '</b>' + badge + '</div>';
+    }).join('');
+  }
+  dd.classList.add('show');
+}
+
+function onNameBlur() {
+  setTimeout(() => { document.getElementById('name-dropdown').classList.remove('show'); }, 150);
+}
+
+function selectCustomer(name) {
+  const c = customerList.find(x => x.name === name);
+  document.getElementById('name-dropdown').classList.remove('show');
+  if (!c) return;
+  document.getElementById('cust_name').value = c.name;
+  document.getElementById('cust_id').value = c.id || '';
+  document.getElementById('cust_address').value = c.address || '';
+  document.getElementById('cust_phone').value = c.phone || '';
+  document.getElementById('cust_email').value = c.email || '';
+
+  const idField = document.getElementById('cust_id');
+  const idNote  = document.getElementById('id-missing-note');
+  if (!c.id) {
+    idField.classList.add('missing');
+    idNote.style.display = 'block';
+  } else {
+    idField.classList.remove('missing');
+    idNote.style.display = 'none';
+  }
+}
+
+async function generateDocument() {
+  const name = document.getElementById('cust_name').value.trim();
+  const idCard = document.getElementById('cust_id').value.trim();
+  if (!name) { alert('กรุณากรอกชื่อลูกค้า'); return; }
+  if (!idCard) { alert('กรุณากรอกเลขบัตรประชาชน — จำเป็นสำหรับเอกสารนี้'); return; }
+
+  const btn = document.getElementById('btn-generate');
+  const savingEl = document.getElementById('saving-msg');
+  const statusEl = document.getElementById('status-msg');
+  const linkEl = document.getElementById('pdf-link');
+  btn.disabled = true;
+  statusEl.style.display = 'none';
+  linkEl.style.display = 'none';
+  savingEl.style.display = 'block';
+
+  const payload = {
+    type: 'generate_contract_document',
+    doc_type: currentDocType,
+    name: name,
+    id: idCard,
+    address: document.getElementById('cust_address').value.trim(),
+    phone: document.getElementById('cust_phone').value.trim(),
+    email: document.getElementById('cust_email').value.trim(),
+    qt_no: document.getElementById('qt_no').value.trim()
+  };
+
+  try {
+    const res  = await fetch(APPS_URL, {
+      method: 'POST', headers: { 'Content-Type': 'text/plain' },
+      body: JSON.stringify(payload)
+    });
+    const json = await res.json();
+    if (json.status !== 'ok') throw new Error(json.msg || 'สร้างเอกสารไม่สำเร็จ');
+    statusEl.textContent = '✓ สร้างเอกสารเรียบร้อย — ' + json.doc_no;
+    statusEl.className = 'status-msg ok';
+    linkEl.href = json.pdf_url;
+    linkEl.style.display = 'block';
+    await loadCustomerList();
+    await loadNextDocNo();
+  } catch(e) {
+    statusEl.textContent = '❌ ' + e.message;
+    statusEl.className = 'status-msg error';
+  } finally {
+    savingEl.style.display = 'none';
+    statusEl.style.display = 'block';
+    btn.disabled = false;
+  }
+}
+
+(async function() {
+  await Promise.all([loadCustomerList(), loadNextDocNo()]);
+})();
+</script>
+</body>
+</html>
