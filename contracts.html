@@ -109,7 +109,7 @@ body{font-family:'Sarabun',sans-serif;background:#f5f5f0;color:#1a1a2e;font-size
   <button class="btn primary" id="btn-generate" onclick="generateDocument()">สร้างเอกสาร</button>
   <div class="saving-msg" id="saving-msg">กำลังสร้างเอกสาร…</div>
   <div class="status-msg" id="status-msg"></div>
-  <a class="result-link" id="pdf-link" href="#" target="_blank">📄 เปิดเอกสาร PIPA</a>
+  <a class="result-link" id="pdf-link" href="#" target="_blank">📄 เปิดเอกสาร</a>
 
 </div>
 
@@ -229,6 +229,7 @@ async function generateDocument() {
     statusEl.textContent = '✓ สร้างเอกสารเรียบร้อย — ' + json.doc_no;
     statusEl.className = 'status-msg ok';
     linkEl.href = json.pdf_url;
+    linkEl.textContent = '📄 เปิดเอกสาร ' + (json.doc_type || currentDocType);
     linkEl.style.display = 'block';
     await loadCustomerList();
     await loadNextDocNo();
