@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
 <title>Document Generator - MERGEE</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/signature_pad/4.1.7/signature_pad.umd.min.js"></script>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&display=swap');
 *{box-sizing:border-box;margin:0;padding:0}
@@ -28,6 +29,12 @@ body{font-family:'Sarabun',sans-serif;background:#f5f5f0;color:#1a1a2e;font-size
 .upload-box.has-img{border-style:solid;border-color:#3d5af1;padding:0}
 .upload-box .placeholder{font-size:13px;color:#aaa}
 .upload-box img{max-width:100%;max-height:220px;object-fit:contain;display:block}
+
+.sig-wrap{border:1.5px solid #e2e2ef;border-radius:10px;overflow:hidden;background:#fff;touch-action:none}
+.sig-wrap canvas{display:block;width:100%;height:130px;cursor:crosshair}
+.sig-toolbar{display:flex;justify-content:space-between;align-items:center;padding:6px 10px;background:#f9f9f9;border-top:1px solid #eee}
+.sig-toolbar span{font-size:11px;color:#aaa}
+.sig-clear{font-size:12px;color:#666;background:none;border:1px solid #ddd;border-radius:6px;padding:5px 12px;cursor:pointer;font-family:inherit}
 
 .combo-wrap{position:relative}
 .combo-dropdown{display:none;position:absolute;top:calc(100% + 4px);left:0;right:0;z-index:30;background:#fff;border:1.5px solid #e0e0e0;border-radius:8px;max-height:240px;overflow-y:auto;box-shadow:0 8px 20px rgba(0,0,0,.10)}
@@ -128,7 +135,7 @@ body{font-family:'Sarabun',sans-serif;background:#f5f5f0;color:#1a1a2e;font-size
     <div class="card-head"><h2>Signatures &amp; Witnesses</h2></div>
     <div class="card-body">
       <div class="field">
-        <label>Mergee Sign (ผู้ลงนามฝ่าย Mergee)</label>
+        <label>ชื่อผู้ลงนามฝ่าย MERGEE</label>
         <input id="mergee_sign">
       </div>
       <div class="field" id="witness1-field">
@@ -138,6 +145,31 @@ body{font-family:'Sarabun',sans-serif;background:#f5f5f0;color:#1a1a2e;font-size
       <div class="field" id="witness2-field">
         <label>ชื่อพยาน 2</label>
         <input id="witness2">
+      </div>
+
+      <div class="field">
+        <label>ลายเซ็นดิจิทัล (สำหรับ Remote — ไม่บังคับ)</label>
+        <div class="hint">ถ้าเป็นหน้าร้าน ไม่ต้องวาด — เอกสารจะเว้นเส้นประไว้ให้เซ็นปากกาแทน</div>
+      </div>
+      <div class="field">
+        <label>ลายเซ็นลูกค้า</label>
+        <div class="sig-wrap">
+          <canvas id="sig-customer"></canvas>
+          <div class="sig-toolbar">
+            <span>วาดด้วยนิ้ว/เมาส์</span>
+            <button type="button" class="sig-clear" onclick="clearSig('customer')">ล้าง</button>
+          </div>
+        </div>
+      </div>
+      <div class="field">
+        <label>ลายเซ็น Mergee</label>
+        <div class="sig-wrap">
+          <canvas id="sig-mergee"></canvas>
+          <div class="sig-toolbar">
+            <span>วาดด้วยนิ้ว/เมาส์</span>
+            <button type="button" class="sig-clear" onclick="clearSig('mergee')">ล้าง</button>
+          </div>
+        </div>
       </div>
     </div>
   </div>
@@ -162,6 +194,23 @@ let docTypeConfig = {
   NDA:   { hasWitnesses: false, hasProductImage: false }
 };
 let productImageData = '';
+let sigPadCustomer, sigPadMergee;
+
+function initSignaturePads() {
+  const canvasCustomer = document.getElementById('sig-customer');
+  const canvasMergee = document.getElementById('sig-mergee');
+  canvasCustomer.width = canvasCustomer.offsetWidth;
+  canvasCustomer.height = 130;
+  canvasMergee.width = canvasMergee.offsetWidth;
+  canvasMergee.height = 130;
+  sigPadCustomer = new SignaturePad(canvasCustomer, { penColor: '#1a1a2e', minWidth: 1.5, maxWidth: 2.5 });
+  sigPadMergee = new SignaturePad(canvasMergee, { penColor: '#1a1a2e', minWidth: 1.5, maxWidth: 2.5 });
+}
+
+function clearSig(which) {
+  if (which === 'customer' && sigPadCustomer) sigPadCustomer.clear();
+  if (which === 'mergee' && sigPadMergee) sigPadMergee.clear();
+}
 
 function escAttr(s) { return String(s || '').replace(/\\/g,'\\\\').replace(/'/g,"\\'"); }
 function escHtml(s) { return String(s || '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
@@ -306,7 +355,9 @@ async function generateDocument() {
     mergee_sign: document.getElementById('mergee_sign').value.trim(),
     witness1: document.getElementById('witness1').value.trim(),
     witness2: document.getElementById('witness2').value.trim(),
-    product_image: productImageData
+    product_image: productImageData,
+    customer_sign_img: (sigPadCustomer && !sigPadCustomer.isEmpty()) ? sigPadCustomer.toDataURL('image/png') : '',
+    mergee_sign_img: (sigPadMergee && !sigPadMergee.isEmpty()) ? sigPadMergee.toDataURL('image/png') : ''
   };
 
   try {
@@ -325,6 +376,8 @@ async function generateDocument() {
     document.getElementById('witness1').value = '';
     document.getElementById('witness2').value = '';
     clearProductImage();
+    clearSig('customer');
+    clearSig('mergee');
     await loadCustomerList();
     await loadNextDocNo();
   } catch(e) {
@@ -338,6 +391,7 @@ async function generateDocument() {
 }
 
 applyDocTypeFields(); // ใช้ค่า default ทันที ไม่ต้องรอ fetch
+initSignaturePads();
 
 (async function() {
   await Promise.all([loadCustomerList(), loadDocTypeConfig(), loadNextDocNo()]);
