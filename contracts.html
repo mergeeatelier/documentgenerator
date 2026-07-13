@@ -516,10 +516,14 @@ async function sendSigningLink() {
     });
     const json = await res.json();
     if (json.status !== 'ok') throw new Error(json.msg || 'สร้างลิงก์ไม่สำเร็จ');
-    statusEl.textContent = '✓ สร้างลิงก์แล้ว — ส่งลิงก์นี้ให้ลูกค้าได้เลย';
+    // ตอนนี้เอกสารจริงถูกสร้างและ "ล็อค" เลขที่ไว้แล้วตั้งแต่ตอนกดปุ่มนี้ (ก่อนลูกค้าเซ็น)
+    // — แสดงเลขที่นั้นให้ staff เห็นไปด้วยเลย
+    statusEl.textContent = '✓ สร้างลิงก์แล้ว (เลขที่ ' + (json.doc_no || '—') + ') — ส่งลิงก์นี้ให้ลูกค้าได้เลย';
     statusEl.className = 'status-msg ok';
     document.getElementById('sign-link-output').value = json.sign_url;
     boxEl.style.display = 'block';
+    await loadCustomerList();
+    await loadNextDocNo();
   } catch(e) {
     statusEl.textContent = '❌ ' + e.message;
     statusEl.className = 'status-msg error';
