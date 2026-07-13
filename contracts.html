@@ -23,6 +23,11 @@ body{font-family:'Sarabun',sans-serif;background:#f5f5f0;color:#1a1a2e;font-size
 .field input{width:100%;border:1px solid #ddd;border-radius:8px;padding:10px 12px;font-family:inherit;font-size:14px;color:#1a1a2e;background:#fafafa}
 .field input:focus{outline:none;border-color:#3d5af1;background:#fff}
 .field input.missing{border-color:#e0a030;background:#fffaf0}
+.upload-box{border:1.5px dashed #ccc;border-radius:10px;overflow:hidden;cursor:pointer;background:#fafafa;min-height:120px;display:flex;align-items:center;justify-content:center;transition:border-color .15s}
+.upload-box:hover{border-color:#3d5af1}
+.upload-box.has-img{border-style:solid;border-color:#3d5af1;padding:0}
+.upload-box .placeholder{font-size:13px;color:#aaa}
+.upload-box img{max-width:100%;max-height:220px;object-fit:contain;display:block}
 
 .combo-wrap{position:relative}
 .combo-dropdown{display:none;position:absolute;top:calc(100% + 4px);left:0;right:0;z-index:30;background:#fff;border:1.5px solid #e0e0e0;border-radius:8px;max-height:240px;overflow-y:auto;box-shadow:0 8px 20px rgba(0,0,0,.10)}
@@ -106,6 +111,37 @@ body{font-family:'Sarabun',sans-serif;background:#f5f5f0;color:#1a1a2e;font-size
     </div>
   </div>
 
+  <div class="card" id="product-image-card" style="display:none">
+    <div class="card-head"><h2>Product Image</h2></div>
+    <div class="card-body">
+      <div class="field">
+        <label>รูปสินค้า</label>
+        <div class="upload-box" id="box-product_image" onclick="document.getElementById('file-product_image').click()">
+          <div class="placeholder">คลิกเพื่ออัปโหลด</div>
+        </div>
+        <input type="file" id="file-product_image" accept="image/*" style="display:none" onchange="handleProductImage(this)">
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-head"><h2>Signatures &amp; Witnesses</h2></div>
+    <div class="card-body">
+      <div class="field">
+        <label>Mergee Sign (ผู้ลงนามฝ่าย Mergee)</label>
+        <input id="mergee_sign">
+      </div>
+      <div class="field" id="witness1-field">
+        <label>ชื่อพยาน 1</label>
+        <input id="witness1">
+      </div>
+      <div class="field" id="witness2-field">
+        <label>ชื่อพยาน 2</label>
+        <input id="witness2">
+      </div>
+    </div>
+  </div>
+
   <button class="btn primary" id="btn-generate" onclick="generateDocument()">สร้างเอกสาร</button>
   <div class="saving-msg" id="saving-msg">กำลังสร้างเอกสาร…</div>
   <div class="status-msg" id="status-msg"></div>
@@ -118,15 +154,65 @@ const APPS_URL = 'https://script.google.com/macros/s/AKfycbyGqjoxNV-sMq9_78Bbgpy
 
 let customerList = [];
 let currentDocType = 'PIPA';
+// ค่าเริ่มต้นที่ใช้ทันที เผื่อ backend ยังไม่ได้ deploy endpoint doctypeconfig — จะถูกแทนที่
+// ด้วยค่าจาก server ถ้าดึงได้สำเร็จ (server เป็นแหล่งข้อมูลจริงเมื่อ deploy ล่าสุดแล้ว)
+let docTypeConfig = {
+  PIPA:  { hasWitnesses: true,  hasProductImage: false },
+  PDOBA: { hasWitnesses: true,  hasProductImage: true  },
+  NDA:   { hasWitnesses: false, hasProductImage: false }
+};
+let productImageData = '';
 
 function escAttr(s) { return String(s || '').replace(/\\/g,'\\\\').replace(/'/g,"\\'"); }
 function escHtml(s) { return String(s || '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+
+async function loadDocTypeConfig() {
+  try {
+    const res = await fetch(APPS_URL + '?action=doctypeconfig');
+    const json = await res.json();
+    if (json && json.PIPA && json.PDOBA && json.NDA) docTypeConfig = json;
+  } catch(e) { console.error('loadDocTypeConfig failed, using local defaults:', e); }
+  applyDocTypeFields();
+}
+
+function applyDocTypeFields() {
+  const cfg = docTypeConfig[currentDocType] || {};
+  document.getElementById('witness1-field').style.display = cfg.hasWitnesses ? 'flex' : 'none';
+  document.getElementById('witness2-field').style.display = cfg.hasWitnesses ? 'flex' : 'none';
+  document.getElementById('product-image-card').style.display = cfg.hasProductImage ? 'block' : 'none';
+  if (!cfg.hasWitnesses) { document.getElementById('witness1').value = ''; document.getElementById('witness2').value = ''; }
+  if (!cfg.hasProductImage) { clearProductImage(); }
+}
+
+function handleProductImage(input) {
+  const file = input.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    productImageData = e.target.result;
+    const box = document.getElementById('box-product_image');
+    box.classList.add('has-img');
+    box.innerHTML = '<img src="' + e.target.result + '">';
+  };
+  reader.readAsDataURL(file);
+}
+
+function clearProductImage() {
+  productImageData = '';
+  const box = document.getElementById('box-product_image');
+  if (!box) return;
+  box.classList.remove('has-img');
+  box.innerHTML = '<div class="placeholder">คลิกเพื่ออัปโหลด</div>';
+  const fileInput = document.getElementById('file-product_image');
+  if (fileInput) fileInput.value = '';
+}
 
 function selectDocType(type) {
   currentDocType = type;
   ['PIPA','PDOBA','NDA'].forEach(t => {
     document.getElementById('btn-doctype-' + t).classList.toggle('active', t === type);
   });
+  applyDocTypeFields();
   loadNextDocNo();
 }
 
@@ -216,7 +302,11 @@ async function generateDocument() {
     address: document.getElementById('cust_address').value.trim(),
     phone: document.getElementById('cust_phone').value.trim(),
     email: document.getElementById('cust_email').value.trim(),
-    qt_no: document.getElementById('qt_no').value.trim()
+    qt_no: document.getElementById('qt_no').value.trim(),
+    mergee_sign: document.getElementById('mergee_sign').value.trim(),
+    witness1: document.getElementById('witness1').value.trim(),
+    witness2: document.getElementById('witness2').value.trim(),
+    product_image: productImageData
   };
 
   try {
@@ -231,6 +321,10 @@ async function generateDocument() {
     linkEl.href = json.pdf_url;
     linkEl.textContent = '📄 เปิดเอกสาร ' + (json.doc_type || currentDocType);
     linkEl.style.display = 'block';
+    document.getElementById('mergee_sign').value = '';
+    document.getElementById('witness1').value = '';
+    document.getElementById('witness2').value = '';
+    clearProductImage();
     await loadCustomerList();
     await loadNextDocNo();
   } catch(e) {
@@ -243,8 +337,10 @@ async function generateDocument() {
   }
 }
 
+applyDocTypeFields(); // ใช้ค่า default ทันที ไม่ต้องรอ fetch
+
 (async function() {
-  await Promise.all([loadCustomerList(), loadNextDocNo()]);
+  await Promise.all([loadCustomerList(), loadDocTypeConfig(), loadNextDocNo()]);
 })();
 </script>
 </body>
