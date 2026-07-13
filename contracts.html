@@ -51,6 +51,7 @@ body{font-family:'Sarabun',sans-serif;background:#f5f5f0;color:#1a1a2e;font-size
 
 .btn{border:none;border-radius:10px;padding:13px;font-family:inherit;font-size:15px;font-weight:600;cursor:pointer;color:#fff;width:100%}
 .btn.primary{background:#1a1a2e}
+.btn.secondary{background:#fff;color:#1a1a2e;border:1.5px solid #1a1a2e}
 .btn:disabled{opacity:.5;cursor:not-allowed}
 
 .status-msg{font-size:13px;margin-top:10px;text-align:center;display:none}
@@ -118,6 +119,16 @@ body{font-family:'Sarabun',sans-serif;background:#f5f5f0;color:#1a1a2e;font-size
     </div>
   </div>
 
+  <div class="card" id="price-card" style="display:none">
+    <div class="card-head"><h2>Price</h2></div>
+    <div class="card-body">
+      <div class="field">
+        <label>ระบุจำนวนเงินสุทธิ</label>
+        <input id="net_price">
+      </div>
+    </div>
+  </div>
+
   <div class="card" id="product-image-card" style="display:none">
     <div class="card-head"><h2>Product Image</h2></div>
     <div class="card-body">
@@ -135,21 +146,8 @@ body{font-family:'Sarabun',sans-serif;background:#f5f5f0;color:#1a1a2e;font-size
     <div class="card-head"><h2>Signatures &amp; Witnesses</h2></div>
     <div class="card-body">
       <div class="field">
-        <label>ชื่อผู้ลงนามฝ่าย MERGEE</label>
-        <input id="mergee_sign">
-      </div>
-      <div class="field" id="witness1-field">
-        <label>ชื่อพยาน 1</label>
-        <input id="witness1">
-      </div>
-      <div class="field" id="witness2-field">
-        <label>ชื่อพยาน 2</label>
-        <input id="witness2">
-      </div>
-
-      <div class="field">
-        <label>ลายเซ็นดิจิทัล (สำหรับ Remote — ไม่บังคับ)</label>
-        <div class="hint">ถ้าเป็นหน้าร้าน ไม่ต้องวาด — เอกสารจะเว้นเส้นประไว้ให้เซ็นปากกาแทน</div>
+        <label>ตำแหน่ง (ลูกค้า) — ไม่บังคับ</label>
+        <input id="customer_position">
       </div>
       <div class="field">
         <label>ลายเซ็นลูกค้า</label>
@@ -162,12 +160,48 @@ body{font-family:'Sarabun',sans-serif;background:#f5f5f0;color:#1a1a2e;font-size
         </div>
       </div>
       <div class="field">
+        <label>ชื่อผู้ลงนามฝ่าย MERGEE</label>
+        <input id="mergee_sign">
+      </div>
+      <div class="field">
+        <label>ตำแหน่ง (MERGEE) — ไม่บังคับ</label>
+        <input id="mergee_position">
+      </div>
+      <div class="field">
         <label>ลายเซ็น Mergee</label>
         <div class="sig-wrap">
           <canvas id="sig-mergee"></canvas>
           <div class="sig-toolbar">
             <span>วาดด้วยนิ้ว/เมาส์</span>
             <button type="button" class="sig-clear" onclick="clearSig('mergee')">ล้าง</button>
+          </div>
+        </div>
+      </div>
+      <div class="field" id="witness1-field">
+        <label>ชื่อพยาน 1</label>
+        <input id="witness1">
+      </div>
+      <div class="field" id="witness1-sig-field">
+        <label>ลายเซ็นพยาน 1</label>
+        <div class="sig-wrap">
+          <canvas id="sig-witness1"></canvas>
+          <div class="sig-toolbar">
+            <span>วาดด้วยนิ้ว/เมาส์</span>
+            <button type="button" class="sig-clear" onclick="clearSig('witness1')">ล้าง</button>
+          </div>
+        </div>
+      </div>
+      <div class="field" id="witness2-field">
+        <label>ชื่อพยาน 2</label>
+        <input id="witness2">
+      </div>
+      <div class="field" id="witness2-sig-field">
+        <label>ลายเซ็นพยาน 2</label>
+        <div class="sig-wrap">
+          <canvas id="sig-witness2"></canvas>
+          <div class="sig-toolbar">
+            <span>วาดด้วยนิ้ว/เมาส์</span>
+            <button type="button" class="sig-clear" onclick="clearSig('witness2')">ล้าง</button>
           </div>
         </div>
       </div>
@@ -179,6 +213,14 @@ body{font-family:'Sarabun',sans-serif;background:#f5f5f0;color:#1a1a2e;font-size
   <div class="status-msg" id="status-msg"></div>
   <a class="result-link" id="pdf-link" href="#" target="_blank">📄 เปิดเอกสาร</a>
 
+  <button class="btn secondary" id="btn-send-link" onclick="sendSigningLink()" style="margin-top:10px">ส่งลิงก์ให้ลูกค้าเซ็น (Remote)</button>
+  <div class="saving-msg" id="link-saving-msg">กำลังสร้างลิงก์…</div>
+  <div class="status-msg" id="link-status-msg"></div>
+  <div class="field" id="sign-link-box" style="display:none;margin-top:10px">
+    <label>ลิงก์สำหรับลูกค้าเซ็น (หมดอายุใน 7 วัน)</label>
+    <input id="sign-link-output" readonly onclick="this.select()">
+  </div>
+
 </div>
 
 <script>
@@ -189,27 +231,62 @@ let currentDocType = 'PIPA';
 // ค่าเริ่มต้นที่ใช้ทันที เผื่อ backend ยังไม่ได้ deploy endpoint doctypeconfig — จะถูกแทนที่
 // ด้วยค่าจาก server ถ้าดึงได้สำเร็จ (server เป็นแหล่งข้อมูลจริงเมื่อ deploy ล่าสุดแล้ว)
 let docTypeConfig = {
-  PIPA:  { hasWitnesses: true,  hasProductImage: false },
-  PDOBA: { hasWitnesses: true,  hasProductImage: true  },
-  NDA:   { hasWitnesses: false, hasProductImage: false }
+  PIPA:  { hasWitnesses: true,  hasProductImage: false, hasPrice: false },
+  PDOBA: { hasWitnesses: true,  hasProductImage: true,  hasPrice: true  },
+  NDA:   { hasWitnesses: false, hasProductImage: false, hasPrice: false }
 };
 let productImageData = '';
-let sigPadCustomer, sigPadMergee;
+let sigPads = {};
+
+// Crops a signature canvas down to just the drawn ink (removes the transparent
+// padding around it), so the embedded image sits tight on the document's line
+// instead of floating above it with extra blank space, and comes out smaller.
+function trimSignatureCanvas(sourceCanvas) {
+  const ctx = sourceCanvas.getContext('2d');
+  const w = sourceCanvas.width, h = sourceCanvas.height;
+  const imgData = ctx.getImageData(0, 0, w, h).data;
+  let minX = w, minY = h, maxX = -1, maxY = -1;
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      if (imgData[(y * w + x) * 4 + 3] > 0) {
+        if (x < minX) minX = x;
+        if (x > maxX) maxX = x;
+        if (y < minY) minY = y;
+        if (y > maxY) maxY = y;
+      }
+    }
+  }
+  if (maxX < 0) return ''; // nothing drawn
+  const pad = 4;
+  minX = Math.max(0, minX - pad); minY = Math.max(0, minY - pad);
+  maxX = Math.min(w - 1, maxX + pad); maxY = Math.min(h - 1, maxY + pad);
+  const trimW = maxX - minX + 1, trimH = maxY - minY + 1;
+  const trimmed = document.createElement('canvas');
+  trimmed.width = trimW; trimmed.height = trimH;
+  trimmed.getContext('2d').drawImage(sourceCanvas, minX, minY, trimW, trimH, 0, 0, trimW, trimH);
+  return trimmed.toDataURL('image/png');
+}
 
 function initSignaturePads() {
-  const canvasCustomer = document.getElementById('sig-customer');
-  const canvasMergee = document.getElementById('sig-mergee');
-  canvasCustomer.width = canvasCustomer.offsetWidth;
-  canvasCustomer.height = 130;
-  canvasMergee.width = canvasMergee.offsetWidth;
-  canvasMergee.height = 130;
-  sigPadCustomer = new SignaturePad(canvasCustomer, { penColor: '#1a1a2e', minWidth: 1.5, maxWidth: 2.5 });
-  sigPadMergee = new SignaturePad(canvasMergee, { penColor: '#1a1a2e', minWidth: 1.5, maxWidth: 2.5 });
+  const ids = ['customer', 'mergee', 'witness1', 'witness2'];
+  sigPads = {};
+  ids.forEach(id => {
+    const canvas = document.getElementById('sig-' + id);
+    if (!canvas) return;
+    canvas.width = canvas.offsetWidth;
+    canvas.height = 130;
+    sigPads[id] = new SignaturePad(canvas, { penColor: '#1a1a2e', minWidth: 1.5, maxWidth: 2.5 });
+  });
 }
 
 function clearSig(which) {
-  if (which === 'customer' && sigPadCustomer) sigPadCustomer.clear();
-  if (which === 'mergee' && sigPadMergee) sigPadMergee.clear();
+  if (sigPads[which]) sigPads[which].clear();
+}
+
+function getSigDataURL(which) {
+  const pad = sigPads[which];
+  if (!pad || pad.isEmpty()) return '';
+  return trimSignatureCanvas(document.getElementById('sig-' + which));
 }
 
 function escAttr(s) { return String(s || '').replace(/\\/g,'\\\\').replace(/'/g,"\\'"); }
@@ -228,9 +305,18 @@ function applyDocTypeFields() {
   const cfg = docTypeConfig[currentDocType] || {};
   document.getElementById('witness1-field').style.display = cfg.hasWitnesses ? 'flex' : 'none';
   document.getElementById('witness2-field').style.display = cfg.hasWitnesses ? 'flex' : 'none';
+  document.getElementById('witness1-sig-field').style.display = cfg.hasWitnesses ? 'flex' : 'none';
+  document.getElementById('witness2-sig-field').style.display = cfg.hasWitnesses ? 'flex' : 'none';
   document.getElementById('product-image-card').style.display = cfg.hasProductImage ? 'block' : 'none';
-  if (!cfg.hasWitnesses) { document.getElementById('witness1').value = ''; document.getElementById('witness2').value = ''; }
+  document.getElementById('price-card').style.display = cfg.hasPrice ? 'block' : 'none';
+  if (!cfg.hasWitnesses) {
+    document.getElementById('witness1').value = '';
+    document.getElementById('witness2').value = '';
+    clearSig('witness1');
+    clearSig('witness2');
+  }
   if (!cfg.hasProductImage) { clearProductImage(); }
+  if (!cfg.hasPrice && document.getElementById('net_price')) { document.getElementById('net_price').value = ''; }
 }
 
 function handleProductImage(input) {
@@ -328,6 +414,28 @@ function selectCustomer(name) {
   }
 }
 
+function buildFormPayload() {
+  return {
+    doc_type: currentDocType,
+    name: document.getElementById('cust_name').value.trim(),
+    id: document.getElementById('cust_id').value.trim(),
+    address: document.getElementById('cust_address').value.trim(),
+    phone: document.getElementById('cust_phone').value.trim(),
+    email: document.getElementById('cust_email').value.trim(),
+    qt_no: document.getElementById('qt_no').value.trim(),
+    customer_position: document.getElementById('customer_position').value.trim(),
+    mergee_sign: document.getElementById('mergee_sign').value.trim(),
+    mergee_position: document.getElementById('mergee_position').value.trim(),
+    witness1: document.getElementById('witness1').value.trim(),
+    witness2: document.getElementById('witness2').value.trim(),
+    net_price: document.getElementById('net_price') ? document.getElementById('net_price').value.trim() : '',
+    product_image: productImageData,
+    mergee_sign_img: getSigDataURL('mergee'),
+    witness1_sign_img: getSigDataURL('witness1'),
+    witness2_sign_img: getSigDataURL('witness2')
+  };
+}
+
 async function generateDocument() {
   const name = document.getElementById('cust_name').value.trim();
   const idCard = document.getElementById('cust_id').value.trim();
@@ -343,22 +451,11 @@ async function generateDocument() {
   linkEl.style.display = 'none';
   savingEl.style.display = 'block';
 
-  const payload = {
-    type: 'generate_contract_document',
-    doc_type: currentDocType,
-    name: name,
-    id: idCard,
-    address: document.getElementById('cust_address').value.trim(),
-    phone: document.getElementById('cust_phone').value.trim(),
-    email: document.getElementById('cust_email').value.trim(),
-    qt_no: document.getElementById('qt_no').value.trim(),
-    mergee_sign: document.getElementById('mergee_sign').value.trim(),
-    witness1: document.getElementById('witness1').value.trim(),
-    witness2: document.getElementById('witness2').value.trim(),
-    product_image: productImageData,
-    customer_sign_img: (sigPadCustomer && !sigPadCustomer.isEmpty()) ? sigPadCustomer.toDataURL('image/png') : '',
-    mergee_sign_img: (sigPadMergee && !sigPadMergee.isEmpty()) ? sigPadMergee.toDataURL('image/png') : ''
-  };
+  const payload = Object.assign(
+    { type: 'generate_contract_document' },
+    buildFormPayload(),
+    { customer_sign_img: getSigDataURL('customer') }
+  );
 
   try {
     const res  = await fetch(APPS_URL, {
@@ -372,14 +469,57 @@ async function generateDocument() {
     linkEl.href = json.pdf_url;
     linkEl.textContent = '📄 เปิดเอกสาร ' + (json.doc_type || currentDocType);
     linkEl.style.display = 'block';
+    document.getElementById('customer_position').value = '';
     document.getElementById('mergee_sign').value = '';
+    document.getElementById('mergee_position').value = '';
     document.getElementById('witness1').value = '';
     document.getElementById('witness2').value = '';
+    if (document.getElementById('net_price')) document.getElementById('net_price').value = '';
     clearProductImage();
     clearSig('customer');
     clearSig('mergee');
+    clearSig('witness1');
+    clearSig('witness2');
     await loadCustomerList();
     await loadNextDocNo();
+  } catch(e) {
+    statusEl.textContent = '❌ ' + e.message;
+    statusEl.className = 'status-msg error';
+  } finally {
+    savingEl.style.display = 'none';
+    statusEl.style.display = 'block';
+    btn.disabled = false;
+  }
+}
+
+async function sendSigningLink() {
+  const name = document.getElementById('cust_name').value.trim();
+  const idCard = document.getElementById('cust_id').value.trim();
+  if (!name) { alert('กรุณากรอกชื่อลูกค้า'); return; }
+  if (!idCard) { alert('กรุณากรอกเลขบัตรประชาชน — จำเป็นสำหรับเอกสารนี้'); return; }
+
+  const btn = document.getElementById('btn-send-link');
+  const savingEl = document.getElementById('link-saving-msg');
+  const statusEl = document.getElementById('link-status-msg');
+  const boxEl = document.getElementById('sign-link-box');
+  btn.disabled = true;
+  statusEl.style.display = 'none';
+  boxEl.style.display = 'none';
+  savingEl.style.display = 'block';
+
+  const payload = Object.assign({ type: 'create_signing_token' }, buildFormPayload());
+
+  try {
+    const res  = await fetch(APPS_URL, {
+      method: 'POST', headers: { 'Content-Type': 'text/plain' },
+      body: JSON.stringify(payload)
+    });
+    const json = await res.json();
+    if (json.status !== 'ok') throw new Error(json.msg || 'สร้างลิงก์ไม่สำเร็จ');
+    statusEl.textContent = '✓ สร้างลิงก์แล้ว — ส่งลิงก์นี้ให้ลูกค้าได้เลย';
+    statusEl.className = 'status-msg ok';
+    document.getElementById('sign-link-output').value = json.sign_url;
+    boxEl.style.display = 'block';
   } catch(e) {
     statusEl.textContent = '❌ ' + e.message;
     statusEl.className = 'status-msg error';
