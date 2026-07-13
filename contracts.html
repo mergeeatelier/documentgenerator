@@ -182,7 +182,7 @@ body{font-family:'Sarabun',sans-serif;background:#f5f5f0;color:#1a1a2e;font-size
         <input id="witness1">
       </div>
       <div class="field" id="witness1-sig-field">
-        <label>ลายเซ็นพยาน 1</label>
+        <label>ลายเซ็นพยาน 1 (ถ้าอยู่ด้วย — ไม่ต้องวาดถ้าจะส่งลิงก์ให้เซ็นเอง)</label>
         <div class="sig-wrap">
           <canvas id="sig-witness1"></canvas>
           <div class="sig-toolbar">
@@ -196,7 +196,7 @@ body{font-family:'Sarabun',sans-serif;background:#f5f5f0;color:#1a1a2e;font-size
         <input id="witness2">
       </div>
       <div class="field" id="witness2-sig-field">
-        <label>ลายเซ็นพยาน 2</label>
+        <label>ลายเซ็นพยาน 2 (ถ้าอยู่ด้วย — ไม่ต้องวาดถ้าจะส่งลิงก์ให้เซ็นเอง)</label>
         <div class="sig-wrap">
           <canvas id="sig-witness2"></canvas>
           <div class="sig-toolbar">
@@ -213,12 +213,20 @@ body{font-family:'Sarabun',sans-serif;background:#f5f5f0;color:#1a1a2e;font-size
   <div class="status-msg" id="status-msg"></div>
   <a class="result-link" id="pdf-link" href="#" target="_blank">📄 เปิดเอกสาร</a>
 
-  <button class="btn secondary" id="btn-send-link" onclick="sendSigningLink()" style="margin-top:10px">ส่งลิงก์ให้ลูกค้าเซ็น (Remote)</button>
+  <button class="btn secondary" id="btn-send-link" onclick="sendSigningLink()" style="margin-top:10px">ส่งลิงก์ให้เซ็น (Remote)</button>
   <div class="saving-msg" id="link-saving-msg">กำลังสร้างลิงก์…</div>
   <div class="status-msg" id="link-status-msg"></div>
   <div class="field" id="sign-link-box" style="display:none;margin-top:10px">
     <label>ลิงก์สำหรับลูกค้าเซ็น (หมดอายุใน 7 วัน)</label>
     <input id="sign-link-output" readonly onclick="this.select()">
+  </div>
+  <div class="field" id="witness1-link-box" style="display:none;margin-top:10px">
+    <label>ลิงก์สำหรับพยาน 1 เซ็น (หมดอายุใน 7 วัน)</label>
+    <input id="witness1-link-output" readonly onclick="this.select()">
+  </div>
+  <div class="field" id="witness2-link-box" style="display:none;margin-top:10px">
+    <label>ลิงก์สำหรับพยาน 2 เซ็น (หมดอายุใน 7 วัน)</label>
+    <input id="witness2-link-output" readonly onclick="this.select()">
   </div>
 
 </div>
@@ -492,6 +500,10 @@ async function generateDocument() {
   }
 }
 
+// "ส่งลิงก์ให้เซ็น" now creates one link per person who still needs to sign remotely:
+// the customer always, plus witness 1 / witness 2 if this doc type has witnesses,
+// they're named, and staff didn't already draw their signature above (someone
+// physically present doesn't need a separate remote link).
 async function sendSigningLink() {
   const name = document.getElementById('cust_name').value.trim();
   const idCard = document.getElementById('cust_id').value.trim();
@@ -502,9 +514,13 @@ async function sendSigningLink() {
   const savingEl = document.getElementById('link-saving-msg');
   const statusEl = document.getElementById('link-status-msg');
   const boxEl = document.getElementById('sign-link-box');
+  const w1BoxEl = document.getElementById('witness1-link-box');
+  const w2BoxEl = document.getElementById('witness2-link-box');
   btn.disabled = true;
   statusEl.style.display = 'none';
   boxEl.style.display = 'none';
+  w1BoxEl.style.display = 'none';
+  w2BoxEl.style.display = 'none';
   savingEl.style.display = 'block';
 
   const payload = Object.assign({ type: 'create_signing_token' }, buildFormPayload());
@@ -516,12 +532,28 @@ async function sendSigningLink() {
     });
     const json = await res.json();
     if (json.status !== 'ok') throw new Error(json.msg || 'สร้างลิงก์ไม่สำเร็จ');
-    // ตอนนี้เอกสารจริงถูกสร้างและ "ล็อค" เลขที่ไว้แล้วตั้งแต่ตอนกดปุ่มนี้ (ก่อนลูกค้าเซ็น)
-    // — แสดงเลขที่นั้นให้ staff เห็นไปด้วยเลย
-    statusEl.textContent = '✓ สร้างลิงก์แล้ว (เลขที่ ' + (json.doc_no || '—') + ') — ส่งลิงก์นี้ให้ลูกค้าได้เลย';
+
+    const linksCreated = [];
+    if (json.sign_url) {
+      document.getElementById('sign-link-output').value = json.sign_url;
+      boxEl.style.display = 'block';
+      linksCreated.push('ลูกค้า');
+    }
+    if (json.witness1_sign_url) {
+      document.getElementById('witness1-link-output').value = json.witness1_sign_url;
+      w1BoxEl.style.display = 'block';
+      linksCreated.push('พยาน 1');
+    }
+    if (json.witness2_sign_url) {
+      document.getElementById('witness2-link-output').value = json.witness2_sign_url;
+      w2BoxEl.style.display = 'block';
+      linksCreated.push('พยาน 2');
+    }
+
+    // เอกสารจริงถูกสร้างและ "ล็อค" เลขที่ไว้แล้วตั้งแต่ตอนกดปุ่มนี้ (ก่อนเซ็น) —
+    // แสดงเลขที่และรายชื่อลิงก์ที่สร้างให้ staff เห็นไปด้วยเลย
+    statusEl.textContent = '✓ สร้างลิงก์แล้ว (เลขที่ ' + (json.doc_no || '—') + ') — ' + linksCreated.join(', ');
     statusEl.className = 'status-msg ok';
-    document.getElementById('sign-link-output').value = json.sign_url;
-    boxEl.style.display = 'block';
     await loadCustomerList();
     await loadNextDocNo();
   } catch(e) {
