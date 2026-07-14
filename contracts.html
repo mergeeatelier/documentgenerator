@@ -248,9 +248,9 @@ let currentLanguage = 'TH';
 // ค่าเริ่มต้นที่ใช้ทันที เผื่อ backend ยังไม่ได้ deploy endpoint doctypeconfig — จะถูกแทนที่
 // ด้วยค่าจาก server ถ้าดึงได้สำเร็จ (server เป็นแหล่งข้อมูลจริงเมื่อ deploy ล่าสุดแล้ว)
 let docTypeConfig = {
-  PIPA:  { hasWitnesses: true,  hasProductImage: false, hasPrice: false, hasEnglish: true  },
-  PDOBA: { hasWitnesses: true,  hasProductImage: true,  hasPrice: true,  hasEnglish: false },
-  NDA:   { hasWitnesses: false, hasProductImage: false, hasPrice: false, hasEnglish: false }
+  PIPA:  { hasWitnesses: true,  hasProductImage: false, hasPrice: false, hasEnglish: true },
+  PDOBA: { hasWitnesses: true,  hasProductImage: true,  hasPrice: true,  hasEnglish: true },
+  NDA:   { hasWitnesses: false, hasProductImage: false, hasPrice: false, hasEnglish: true }
 };
 let productImageData = '';
 let sigPads = {};
