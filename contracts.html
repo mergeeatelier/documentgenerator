@@ -9,7 +9,7 @@
 @import url('https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&display=swap');
 *{box-sizing:border-box;margin:0;padding:0}
 body{font-family:'Sarabun',sans-serif;background:#f5f5f0;color:#1a1a2e;font-size:15px;min-height:100vh}
-.page-header{padding:20px 24px 16px;background:#1a1a2e;color:#fff}
+.page-header{padding:20px 24px 16px;background:#1a1a2e;color:#fff;position:relative}
 .eyebrow{font-size:10px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:rgba(255,255,255,.45);margin-bottom:3px}
 .page-header h1{font-size:20px;font-weight:700}
 .pid-badge{display:inline-block;background:rgba(181,134,42,.22);border:1px solid rgba(181,134,42,.45);color:#f0d080;font-size:12px;font-weight:700;padding:3px 12px;border-radius:20px;margin-top:8px;letter-spacing:.06em}
@@ -64,6 +64,10 @@ body{font-family:'Sarabun',sans-serif;background:#f5f5f0;color:#1a1a2e;font-size
 .doctype-row{display:flex;gap:8px;margin-top:12px}
 .doctype-btn{flex:1;background:rgba(255,255,255,.08);border:1.5px solid rgba(255,255,255,.28);color:#fff;font-size:13px;font-weight:700;padding:9px;border-radius:8px;cursor:pointer;text-align:center}
 .doctype-btn.active{background:#b5862a;border-color:#b5862a;color:#fff}
+
+.lang-toggle{position:absolute;top:16px;right:20px;display:flex;align-items:center;gap:4px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.2);border-radius:20px;padding:3px 4px;user-select:none}
+.lang-toggle .lang-opt{font-size:11px;font-weight:300;color:rgba(255,255,255,.4);padding:3px 8px;border-radius:16px;cursor:pointer;transition:color .15s,font-weight .15s}
+.lang-toggle .lang-opt.active{font-weight:700;color:#fff}
 </style>
 </head>
 <body>
@@ -75,6 +79,10 @@ body{font-family:'Sarabun',sans-serif;background:#f5f5f0;color:#1a1a2e;font-size
     <button class="doctype-btn active" id="btn-doctype-PIPA" onclick="selectDocType('PIPA')">PIPA</button>
     <button class="doctype-btn" id="btn-doctype-PDOBA" onclick="selectDocType('PDOBA')">PDOBA</button>
     <button class="doctype-btn" id="btn-doctype-NDA" onclick="selectDocType('NDA')">NDA</button>
+  </div>
+  <div class="lang-toggle" id="lang-toggle" style="display:none">
+    <span class="lang-opt active" id="lang-opt-TH" onclick="selectLanguage('TH')">TH</span>
+    <span class="lang-opt" id="lang-opt-EN" onclick="selectLanguage('EN')">EN</span>
   </div>
   <div class="pid-badge" id="pipano-badge">กำลังโหลด…</div>
 </div>
@@ -236,12 +244,13 @@ const APPS_URL = 'https://script.google.com/macros/s/AKfycbyGqjoxNV-sMq9_78Bbgpy
 
 let customerList = [];
 let currentDocType = 'PIPA';
+let currentLanguage = 'TH';
 // ค่าเริ่มต้นที่ใช้ทันที เผื่อ backend ยังไม่ได้ deploy endpoint doctypeconfig — จะถูกแทนที่
 // ด้วยค่าจาก server ถ้าดึงได้สำเร็จ (server เป็นแหล่งข้อมูลจริงเมื่อ deploy ล่าสุดแล้ว)
 let docTypeConfig = {
-  PIPA:  { hasWitnesses: true,  hasProductImage: false, hasPrice: false },
-  PDOBA: { hasWitnesses: true,  hasProductImage: true,  hasPrice: true  },
-  NDA:   { hasWitnesses: false, hasProductImage: false, hasPrice: false }
+  PIPA:  { hasWitnesses: true,  hasProductImage: false, hasPrice: false, hasEnglish: true  },
+  PDOBA: { hasWitnesses: true,  hasProductImage: true,  hasPrice: true,  hasEnglish: false },
+  NDA:   { hasWitnesses: false, hasProductImage: false, hasPrice: false, hasEnglish: false }
 };
 let productImageData = '';
 let sigPads = {};
@@ -325,6 +334,16 @@ function applyDocTypeFields() {
   }
   if (!cfg.hasProductImage) { clearProductImage(); }
   if (!cfg.hasPrice && document.getElementById('net_price')) { document.getElementById('net_price').value = ''; }
+
+  document.getElementById('lang-toggle').style.display = cfg.hasEnglish ? 'flex' : 'none';
+  if (!cfg.hasEnglish) { selectLanguage('TH'); }
+}
+
+function selectLanguage(lang) {
+  currentLanguage = lang;
+  ['TH','EN'].forEach(l => {
+    document.getElementById('lang-opt-' + l).classList.toggle('active', l === lang);
+  });
 }
 
 function handleProductImage(input) {
@@ -425,6 +444,7 @@ function selectCustomer(name) {
 function buildFormPayload() {
   return {
     doc_type: currentDocType,
+    language: currentLanguage,
     name: document.getElementById('cust_name').value.trim(),
     id: document.getElementById('cust_id').value.trim(),
     address: document.getElementById('cust_address').value.trim(),
@@ -500,10 +520,6 @@ async function generateDocument() {
   }
 }
 
-// "ส่งลิงก์ให้เซ็น" now creates one link per person who still needs to sign remotely:
-// the customer always, plus witness 1 / witness 2 if this doc type has witnesses,
-// they're named, and staff didn't already draw their signature above (someone
-// physically present doesn't need a separate remote link).
 async function sendSigningLink() {
   const name = document.getElementById('cust_name').value.trim();
   const idCard = document.getElementById('cust_id').value.trim();
@@ -550,12 +566,9 @@ async function sendSigningLink() {
       linksCreated.push('พยาน 2');
     }
 
-    // เอกสารจริงถูกสร้างและ "ล็อค" เลขที่ไว้แล้วตั้งแต่ตอนกดปุ่มนี้ (ก่อนเซ็น) —
-    // แสดงเลขที่และรายชื่อลิงก์ที่สร้างให้ staff เห็นไปด้วยเลย
-    statusEl.textContent = '✓ สร้างลิงก์แล้ว (เลขที่ ' + (json.doc_no || '—') + ') — ' + linksCreated.join(', ');
+    statusEl.textContent = '✓ สร้างลิงก์แล้ว — ' + (json.doc_no || '') +
+      (linksCreated.length ? ' (' + linksCreated.join(', ') + ')' : '');
     statusEl.className = 'status-msg ok';
-    await loadCustomerList();
-    await loadNextDocNo();
   } catch(e) {
     statusEl.textContent = '❌ ' + e.message;
     statusEl.className = 'status-msg error';
